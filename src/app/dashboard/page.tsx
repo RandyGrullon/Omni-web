@@ -148,6 +148,27 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDownload = async () => {
+    try {
+      const { data, error } = await supabase
+        .storage
+        .from('omni-installers')
+        .createSignedUrl('Omni_HUD_Setup.exe', 60); // Link válido por 60 segundos
+
+      if (error) throw error;
+
+      // Crear un link temporal y hacer clic programáticamente
+      const link = document.createElement('a');
+      link.href = data.signedUrl;
+      link.download = 'Omni_HUD_Setup.exe';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err: any) {
+      alert("DOWNLOAD ERROR: " + err.message.toUpperCase());
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-[#0D0D0D] flex items-center justify-center">
       <Loader2 className="text-[#00FF41] animate-spin" size={40} />
@@ -319,13 +340,12 @@ export default function DashboardPage() {
             <p className="text-gray-500 mb-12 text-[10px] tracking-[0.3em] leading-loose uppercase max-w-md">
               Latest Build Stable. Core neural interop active. Optimized for Windows 10/11 Architecture.
             </p>
-            <a 
-              href="/Omni_HUD_Setup.exe" 
-              download 
-              className="px-14 py-6 bg-[#00FF41] text-black font-black uppercase text-xs tracking-[0.3em] hover:shadow-[0_0_50px_rgba(0,255,65,0.5)] active:scale-95 transition-all inline-block rounded-2xl"
+            <button 
+              onClick={handleDownload}
+              className="px-14 py-6 bg-[#00FF41] text-black font-black uppercase text-xs tracking-[0.3em] hover:shadow-[0_0_50px_rgba(0,255,65,0.5)] active:scale-95 transition-all inline-block rounded-2xl cursor-pointer"
             >
               Initialize Download
-            </a>
+            </button>
           </motion.div>
 
           <div className="space-y-8">
