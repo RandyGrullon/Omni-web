@@ -1,0 +1,21 @@
+{
+  "name": "Omni Admin Panel",
+  "short_name": "Omni CMS",
+  "description": "Panel de gestión de licencias y usuarios de Omni HUD",
+  "start_url": "/admin-r@n41-6ru110n",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#00FF41",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
