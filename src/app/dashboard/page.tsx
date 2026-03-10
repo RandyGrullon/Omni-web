@@ -153,7 +153,7 @@ export default function DashboardPage() {
       const { data, error } = await supabase
         .storage
         .from('omni-installers')
-        .createSignedUrl('Omni_HUD_Setup.exe', 60); // Link válido por 60 segundos
+        .createSignedUrl('Omni_HUD_LiteSetup.exe', 60); // Link válido por 60 segundos
 
       if (error) throw error;
 
@@ -327,26 +327,75 @@ export default function DashboardPage() {
 
         {/* Dashboard Content */}
         <div className="grid lg:grid-cols-3 gap-8 text-center md:text-left">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            className="lg:col-span-2 bg-[#111] border border-[#00FF41]/20 rounded-[2.5rem] p-12 relative overflow-hidden group shadow-2xl"
-          >
-            <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-              <ShieldCheck size={200} className="text-[#00FF41]" />
-            </div>
-            <Download className="text-[#00FF41] mb-8 mx-auto md:mx-0 animate-bounce" size={56} />
-            <h2 className="text-5xl font-black mb-4 uppercase tracking-tighter">Omni_HUD_Setup.exe</h2>
-            <p className="text-gray-500 mb-12 text-[10px] tracking-[0.3em] leading-loose uppercase max-w-md">
-              Latest Build Stable. Core neural interop active. Optimized for Windows 10/11 Architecture.
-            </p>
-            <button 
-              onClick={handleDownload}
-              className="px-14 py-6 bg-[#00FF41] text-black font-black uppercase text-xs tracking-[0.3em] hover:shadow-[0_0_50px_rgba(0,255,65,0.5)] active:scale-95 transition-all inline-block rounded-2xl cursor-pointer"
+          <div className="lg:col-span-2 space-y-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="bg-[#111] border border-[#00FF41]/20 rounded-[2.5rem] p-12 relative overflow-hidden group shadow-2xl"
             >
-              Initialize Download
-            </button>
-          </motion.div>
+              <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
+                <ShieldCheck size={200} className="text-[#00FF41]" />
+              </div>
+              <Download className="text-[#00FF41] mb-8 mx-auto md:mx-0 animate-bounce" size={56} />
+              <h2 className="text-5xl font-black mb-4 uppercase tracking-tighter">Omni_HUD_Lite.exe</h2>
+              <p className="text-gray-500 mb-12 text-[10px] tracking-[0.3em] leading-loose uppercase max-w-md">
+                Ultra-light Build. Requires Python 3.11+ Environment. Optimized for performance.
+              </p>
+              <button 
+                onClick={handleDownload}
+                className="px-14 py-6 bg-[#00FF41] text-black font-black uppercase text-xs tracking-[0.3em] hover:shadow-[0_0_50px_rgba(0,255,65,0.5)] active:scale-95 transition-all inline-block rounded-2xl cursor-pointer"
+              >
+                Initialize Download
+              </button>
+            </motion.div>
+
+            {/* Tutorial Section */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-black/40 border border-[#222] rounded-[2.5rem] p-10 text-left"
+            >
+              <h3 className="text-[#00FF41] font-black text-sm uppercase tracking-widest mb-8 flex items-center gap-3">
+                <Terminal size={20} /> Pre-Flight Requirements
+              </h3>
+              
+              <div className="grid md:grid-cols-2 gap-10">
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <span className="text-[#00FF41] font-black text-xl">01</span>
+                    <div>
+                      <h4 className="font-bold text-xs uppercase mb-2">Install Python Engine</h4>
+                      <p className="text-[10px] text-gray-500 leading-relaxed uppercase">
+                        Download Python 3.11 from the official site.
+                      </p>
+                      <a href="https://www.python.org/downloads/release/python-3119/" target="_blank" className="inline-block mt-3 text-[9px] font-black text-[#00FF41] border border-[#00FF41]/30 px-3 py-1 rounded-md hover:bg-[#00FF41]/10 transition-all">
+                        DOWNLOAD_PYTHON_3.11
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <span className="text-[#00FF41] font-black text-xl">02</span>
+                    <div>
+                      <h4 className="font-bold text-xs uppercase mb-2">CRITICAL: Enable PATH</h4>
+                      <p className="text-[10px] text-gray-500 leading-relaxed uppercase">
+                        During installation, you <span className="text-white font-bold underline">MUST</span> check the box that says: 
+                        <br/><span className="text-[#00FF41]">"Add Python to PATH"</span>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-10 p-5 bg-[#00FF41]/5 border border-[#00FF41]/10 rounded-2xl">
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest leading-loose">
+                  <span className="text-[#00FF41]">System Note:</span> If Python is not in your PATH, the installer will fail to link the Neural libraries. Verify by typing <code className="text-white bg-white/10 px-2 py-0.5 rounded">python --version</code> in your terminal.
+                </p>
+              </div>
+            </motion.div>
+          </div>
 
           <div className="space-y-8">
             <div className="bg-[#111] border border-[#222] rounded-[2rem] p-8 hover:border-[#00FF41]/30 transition-all shadow-xl">
