@@ -33,6 +33,9 @@ function AuthContent() {
     setLoading(true);
     setMessage('');
 
+    // Debug log para ver si las variables llegan al navegador
+    console.log("Supabase URL Configurada:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -62,7 +65,12 @@ function AuthContent() {
         setMessage('PROTOCOL CREATED. CHECK EMAIL.');
       }
     } catch (err: any) {
-      setMessage(err.message.toUpperCase());
+      console.error("Auth error details:", err);
+      if (err.message === "Failed to fetch") {
+        setMessage("NETWORK ERROR: COULD NOT CONNECT TO AUTH SERVER. CHECK ENV VARIABLES.");
+      } else {
+        setMessage(err.message.toUpperCase());
+      }
     } finally {
       setLoading(false);
     }
