@@ -1,275 +1,149 @@
-'use client';
+// src/app/admin-r@n41-6ru110n/page.tsx
+"use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { 
-  Users, 
-  Key, 
-  LogOut, 
-  Plus, 
-  ShieldCheck, 
-  ChevronLeft, 
-  ChevronRight, 
-  Clipboard, 
-  CheckCircle2, 
-  RefreshCcw, 
-  Clock, 
-  Search, 
-  UserPlus,
-  ArrowRight
-} from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Users, LogOut, ChevronLeft, ChevronRight, Lock, Activity } from 'lucide-react';
+import { AdminModals } from '@/components/admin/AdminModals';
+import { AdminStats } from '@/components/admin/AdminStats';
+import { SubjectExpedient } from '@/components/admin/SubjectExpedient';
+import { UsersTable } from '@/components/admin/UsersTable';
+import { KeysTable } from '@/components/admin/KeysTable';
+import { AdminGuard } from '@/components/admin/AdminGuard';
 
-const ADMIN_EMAIL = 'randy6grullon@gmail.com';
 const MONTHLY_PRICE = 9.99;
-const USERS_PER_PAGE = 8;
+const USERS_PER_PAGE = 50;
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
+  const [activeTab, setActiveTab] = useState<'users' | 'keys'>('users');
   const [profiles, setProfiles] = useState<any[]>([]);
+  const [licenseKeys, setLicenseKeys] = useState<any[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [activeUsersCount, setActiveUsersCount] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterPlan, setFilterPlan] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [planType, setPlanType] = useState<'monthly' | 'yearly'>('monthly');
-  const [recentKey, setRecentKey] = useState<string | null>(null);
+  const [recentKey, setRecentKey] = useState<any>(null);
   const [copied, setCopied] = useState(false);
+  const [userHistory, setUserHistory] = useState<any[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState<any>({ show: false, type: 'success', title: '', message: '' });
 
   const router = useRouter();
+  const finalYearly = MONTHLY_PRICE * 12 * 0.9;
 
-  // Precios calculados
-  const originalYearly = MONTHLY_PRICE * 12;
-  const finalYearly = originalYearly * 0.9; // 10% descuento
-
-  useEffect(() => {
-    checkAdmin();
-  }, [page, searchQuery]);
-
-  const checkAdmin = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user || user.email !== ADMIN_EMAIL) {
-      router.push('/');
-      return;
-    }
-    fetchData();
-  };
+  useEffect(() => { 
+    if (activeTab === 'users') fetchData(); else fetchKeys();
+  }, [page, searchQuery, filterPlan, activeTab]);
 
   const fetchData = async () => {
     setLoading(true);
+    const { count: total } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+    const { count: active } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).gt('plan_expires_at', new Date().toISOString());
+    setTotalUsers(total || 0); setActiveUsersCount(active || 0);
+
     let query = supabase.from('profiles').select('*', { count: 'exact' });
-
-    if (searchQuery) {
-      // Búsqueda por email, nombre o apellido
-      query = query.or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`);
+    if (filterPlan !== 'all') {
+      if (filterPlan === 'expired') query = query.lt('plan_expires_at', new Date().toISOString()).neq('plan', 'architect');
+      else if (filterPlan === 'active') query = query.gt('plan_expires_at', new Date().toISOString());
+      else query = query.eq('plan', filterPlan);
     }
-
-    const start = (page - 1) * USERS_PER_PAGE;
-    const end = start + USERS_PER_PAGE - 1;
-
-    const { data, count } = await query
-      .order('created_at', { ascending: false })
-      .range(start, end);
-
-    setProfiles(data || []);
-    setTotalUsers(count || 0);
-    setLoading(false);
+    if (searchQuery) query = query.or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`);
+    
+    const { data, count } = await query.order('created_at', { ascending: false }).range((page-1)*USERS_PER_PAGE, page*USERS_PER_PAGE-1);
+    setProfiles(data || []); setTotalUsers(count || 0); setLoading(false);
   };
+
+  const fetchKeys = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('license_keys').select('*').order('created_at', { ascending: false });
+    setLicenseKeys(data || []); setLoading(false);
+  };
+
+  const fetchUserHistory = async (email: string) => {
+    const { data } = await supabase.from('license_keys').select('*').eq('used_by_email', email).order('created_at', { ascending: false });
+    setUserHistory(data || []); setIsHistoryOpen(true);
+  };
+
+  const isKeyExpired = (d: string | null, p?: string) => p === 'architect' ? false : !d || new Date(d) < new Date();
 
   const generateKey = async () => {
-    setGenerating(true);
-    const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const newKey = `OMNI-${randomPart}-${Date.now().toString(36).toUpperCase()}-${planType === 'monthly' ? 'MON' : 'YEA'}`;
-    
-    const { error } = await supabase.from('license_keys').insert([{
-      key_text: newKey,
-      plan_type: planType,
-      price_paid: planType === 'monthly' ? MONTHLY_PRICE : finalYearly,
-      expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-    }]);
+    const expired = isKeyExpired(selectedUser?.plan_expires_at, selectedUser?.plan);
+    if (selectedUser && !expired && selectedUser.purchase_id) return;
+    if (selectedUser) {
+      setModalConfig({ show: true, type: 'confirm_assign', title: 'CONFIRMACIÓN', message: `¿Asignar ${planType} a ${selectedUser.email}?`, action: executeKeyGeneration });
+    } else executeKeyGeneration();
+  };
 
-    if (!error) setRecentKey(newKey);
+  const executeKeyGeneration = async () => {
+    setGenerating(true); setModalConfig({ ...modalConfig, show: false });
+    const keyText = `OMNI-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase().substring(4)}`;
+    const expiry = new Date(); expiry.setDate(expiry.getDate() + (planType === 'monthly' ? 30 : 365));
+    const price = planType === 'monthly' ? MONTHLY_PRICE : parseFloat(finalYearly.toFixed(2));
+
+    const { data: ins } = await supabase.from('license_keys').insert([{ key_text: keyText, plan_type: planType, price_paid: price, expires_at: expiry.toISOString(), is_used: !!selectedUser, used_by_email: selectedUser?.email }]).select();
+    if (ins && selectedUser) {
+      await supabase.from('profiles').update({ plan: planType, plan_expires_at: expiry.toISOString(), purchase_id: keyText }).eq('id', selectedUser.id);
+      fetchData(); fetchKeys(); setSelectedUser(null);
+      setModalConfig({ show: true, type: 'success', title: 'SINCRONIZADO', message: 'Protocolo activado correctamente.' });
+    } else if (ins) setRecentKey({ id: ins[0].id, text: keyText });
     setGenerating(false);
   };
 
-  const assignDirectAccess = async (userProfile: any) => {
-    const userName = userProfile.first_name ? `${userProfile.first_name} ${userProfile.last_name}` : userProfile.email;
-    if (!confirm(`¿Asignar plan ${planType} a ${userName}?`)) return;
-    
-    setGenerating(true);
-    const daysToAdd = planType === 'monthly' ? 30 : 365;
-    const currentExpiry = userProfile.plan_expires_at ? new Date(userProfile.plan_expires_at) : new Date();
-    const newExpiry = new Date(currentExpiry.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-
-    const { error } = await supabase.from('profiles').update({
-      plan: planType,
-      plan_expires_at: newExpiry.toISOString()
-    }).eq('id', userProfile.id);
-
-    if (!error) {
-      alert("Acceso asignado correctamente.");
-      fetchData();
-      setSelectedUser(null);
-    } else {
-      alert("Error: " + error.message);
-    }
-    setGenerating(false);
+  const deleteKey = async (id: string) => {
+    setModalConfig({ show: true, type: 'confirm_delete', title: 'ELIMINAR', message: '¿Borrar clave?', action: async () => {
+      await supabase.from('license_keys').delete().eq('id', id);
+      fetchKeys(); setModalConfig({ show: false });
+    }});
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white p-4 md:p-8 font-sans selection:bg-[#00FF41] selection:text-black">
+    <div className="min-h-screen bg-[#020202] text-zinc-100 p-4 md:p-8 font-mono text-xs selection:bg-[#10b981] selection:text-black">
+      <AdminModals modalConfig={modalConfig} setModalConfig={setModalConfig} isHistoryOpen={isHistoryOpen} setIsHistoryOpen={setIsHistoryOpen} userHistory={userHistory} />
+      
       <div className="max-w-7xl mx-auto flex justify-between items-center mb-12">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#00FF41]/10 rounded-2xl flex items-center justify-center border border-[#00FF41]/20">
-            <ShieldCheck className="text-[#00FF41]" size={28} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black tracking-tighter">OMNI COMMAND</h1>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-bold">Admin Privado / Randy Grullón</p>
-          </div>
+        <h1 className="text-3xl font-black tracking-tight">OMNI <span className="text-[#10b981]">COMMAND</span></h1>
+        <div className="flex gap-4 text-left">
+          <button onClick={() => setActiveTab('users')} className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'users' ? 'bg-[#10b981] text-black shadow-lg shadow-[#10b981]/10' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>USUARIOS</button>
+          <button onClick={() => setActiveTab('keys')} className={`px-6 py-2 rounded-xl font-bold transition-all ${activeTab === 'keys' ? 'bg-[#10b981] text-black shadow-lg shadow-[#10b981]/10' : 'bg-zinc-900 text-zinc-400 border border-zinc-800'}`}>CLAVES</button>
+          <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="p-3 bg-zinc-900 rounded-xl hover:text-red-500 transition-all border border-zinc-800"><LogOut size={20} /></button>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(() => router.push('/'))} className="p-3 bg-zinc-900/50 rounded-xl hover:bg-red-500/10 hover:text-red-500 transition-all border border-zinc-800">
-          <LogOut size={20} />
-        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* PANEL IZQUIERDO: GENERADOR */}
-        <div className="lg:col-span-4 space-y-6">
-          <div className="bg-zinc-900/40 border border-zinc-800/60 p-8 rounded-[2.5rem] backdrop-blur-xl">
-            <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <Key className="text-[#00FF41]" size={20} /> {selectedUser ? 'Asignar a Usuario' : 'Generar Licencia'}
-            </h2>
-
-            {selectedUser && (
-              <div className="mb-6 p-4 bg-[#00FF41]/5 border border-[#00FF41]/20 rounded-2xl flex items-center justify-between">
-                <div className="overflow-hidden">
-                  <p className="text-[10px] text-[#00FF41] font-black uppercase">Usuario Seleccionado</p>
-                  <p className="text-sm font-bold truncate">
-                    {selectedUser.first_name ? `${selectedUser.first_name} ${selectedUser.last_name}` : selectedUser.email}
-                  </p>
-                </div>
-                <button onClick={() => setSelectedUser(null)} className="text-zinc-500 hover:text-white text-xs">Cancelar</button>
-              </div>
-            )}
-
-            <div className="flex p-1 bg-black rounded-2xl mb-8 border border-zinc-800 shadow-inner">
-              <button onClick={() => setPlanType('monthly')} className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all ${planType === 'monthly' ? 'bg-[#00FF41] text-black shadow-lg shadow-[#00FF41]/20' : 'text-zinc-500'}`}>MENSUAL</button>
-              <button onClick={() => setPlanType('yearly')} className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all ${planType === 'yearly' ? 'bg-[#00FF41] text-black shadow-lg shadow-[#00FF41]/20' : 'text-zinc-500'}`}>ANUAL (-10%)</button>
-            </div>
-
-            <div className="mb-8 text-center bg-black/40 py-6 rounded-3xl border border-zinc-800/30">
-              <p className="text-[10px] text-zinc-500 font-bold uppercase mb-1 tracking-widest">Precio Final</p>
-              <span className="text-4xl font-black text-[#00FF41]">${planType === 'monthly' ? MONTHLY_PRICE : finalYearly.toFixed(2)}</span>
-            </div>
-
-            <button 
-              onClick={() => selectedUser ? assignDirectAccess(selectedUser) : generateKey()}
-              className="w-full bg-[#00FF41] text-black h-16 rounded-2xl font-black tracking-tighter flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-[#00FF41]/10 disabled:opacity-50"
-              disabled={generating}
-            >
-              {selectedUser ? <UserPlus size={22} /> : <Plus size={22} />}
-              {selectedUser ? 'ASIGNAR ACCESO' : 'GENERAR CLAVE'}
-            </button>
-
-            {recentKey && !selectedUser && (
-              <div className="mt-8 p-5 bg-[#00FF41]/10 border border-[#00FF41]/30 rounded-2xl animate-in zoom-in-95">
-                <p className="text-[10px] text-[#00FF41] font-black uppercase mb-3">Clave para compartir</p>
-                <div className="flex items-center justify-between gap-2">
-                  <code className="text-lg font-mono font-black text-white">{recentKey}</code>
-                  <button onClick={() => {navigator.clipboard.writeText(recentKey); setCopied(true); setTimeout(() => setCopied(false), 2000)}} className="p-3 bg-[#00FF41]/20 rounded-xl text-[#00FF41] hover:bg-[#00FF41]/30">
-                    {copied ? <CheckCircle2 size={20} /> : <Clipboard size={20} />}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="lg:col-span-4 space-y-8 text-left">
+          <AdminStats totalUsers={totalUsers} activeUsersCount={activeUsersCount} architectsCount={profiles.filter(p => p.plan === 'architect').length || 1} />
+          <SubjectExpedient selectedUser={selectedUser} setSelectedUser={setSelectedUser} planType={planType} setPlanType={setPlanType} generating={generating} generateKey={generateKey} recentKey={recentKey} copied={copied} setCopied={setCopied} fetchUserHistory={fetchUserHistory} isKeyExpired={isKeyExpired} prices={{monthly: MONTHLY_PRICE, yearly: finalYearly}} />
         </div>
 
-        {/* PANEL DERECHO: BUSCADOR Y LISTA */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-[2.5rem] overflow-hidden backdrop-blur-xl">
-            <div className="p-8 border-b border-zinc-800/60 flex flex-col md:flex-row justify-between items-center gap-6">
-              <div className="flex items-center gap-3">
-                <Users size={22} className="text-zinc-500" />
-                <h3 className="font-bold text-lg">Directorio de Usuarios</h3>
-              </div>
-              <div className="relative w-full md:w-80 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-[#00FF41] transition-colors" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar email o nombre..." 
-                  className="w-full bg-black border border-zinc-800 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-[#00FF41]/50 focus:ring-4 focus:ring-[#00FF41]/5 transition-all"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[10px] text-zinc-500 font-black uppercase tracking-widest bg-black/30">
-                    <th className="px-8 py-5">Nombre / Email</th>
-                    <th className="px-8 py-5">Suscripción</th>
-                    <th className="px-8 py-5 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-800/40">
-                  {profiles.map((p) => (
-                    <tr key={p.id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-zinc-200">
-                            {p.first_name ? `${p.first_name} ${p.last_name}` : 'Sin Nombre'}
-                          </span>
-                          <span className="text-xs text-zinc-500">{p.email}</span>
-                          <span className="text-[10px] text-zinc-600 font-mono">UID: {p.id.substring(0, 8)}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col gap-1">
-                          <span className={`w-fit px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                            p.plan === 'architect' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' :
-                            p.plan === 'yearly' ? 'bg-[#00FF41]/10 text-[#00FF41] border border-[#00FF41]/20' :
-                            p.plan === 'monthly' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' :
-                            'bg-zinc-800 text-zinc-500'
-                          }`}>
-                            {p.plan || 'SIN PLAN'}
-                          </span>
-                          {p.plan_expires_at && (
-                            <span className="text-[10px] text-zinc-500 flex items-center gap-1">
-                              <Clock size={10} /> {new Date(p.plan_expires_at).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <button 
-                          onClick={() => setSelectedUser(p)}
-                          className="px-4 py-2 bg-zinc-800/50 rounded-xl text-xs font-bold hover:bg-[#00FF41] hover:text-black transition-all flex items-center gap-2 ml-auto"
-                        >
-                          SELECCIONAR <ArrowRight size={14} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="p-6 bg-black/40 border-t border-zinc-800/60 flex justify-between items-center">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-3 bg-zinc-900 rounded-xl disabled:opacity-20 hover:bg-zinc-800 transition-all"><ChevronLeft /></button>
-              <div className="flex gap-2">
-                {[...Array(Math.ceil(totalUsers / USERS_PER_PAGE))].slice(0, 5).map((_, i) => (
-                  <button key={i} onClick={() => setPage(i + 1)} className={`w-10 h-10 rounded-xl text-xs font-bold transition-all ${page === i + 1 ? 'bg-[#00FF41] text-black shadow-lg shadow-[#00FF41]/20' : 'text-zinc-500 hover:text-white'}`}>{i + 1}</button>
-                ))}
-              </div>
-              <button onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(totalUsers / USERS_PER_PAGE)} className="p-3 bg-zinc-900 rounded-xl disabled:opacity-20 hover:bg-zinc-800 transition-all"><ChevronRight /></button>
+        <div className="lg:col-span-8">
+          <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-[2.5rem] overflow-hidden backdrop-blur-2xl text-left">
+            {activeTab === 'users' ? (
+              <UsersTable profiles={profiles} searchQuery={searchQuery} setSearchQuery={setSearchQuery} filterPlan={filterPlan} setFilterPlan={setFilterPlan} setPage={setPage} selectedUser={selectedUser} setSelectedUser={setSelectedUser} fetchUserHistory={fetchUserHistory} isKeyExpired={isKeyExpired} />
+            ) : (
+              <KeysTable licenseKeys={licenseKeys} deleteKey={deleteKey} />
+            )}
+            <div className="p-6 bg-black/40 border-t border-zinc-800/60 flex justify-between items-center text-left">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-3 bg-zinc-900 rounded-xl disabled:opacity-20"><ChevronLeft /></button>
+              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Protocol_Page {page}</span>
+              <button onClick={() => setPage(p => p + 1)} disabled={profiles.length < USERS_PER_PAGE} className="p-3 bg-zinc-900 rounded-xl disabled:opacity-20"><ChevronRight /></button>
             </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <AdminGuard>
+      <AdminDashboardContent />
+    </AdminGuard>
   );
 }

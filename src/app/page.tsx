@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -23,7 +24,17 @@ export default function LandingPage() {
     setMounted(true);
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user || null);
+      const currentUser = data.session?.user || null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+        setProfile(profileData);
+      }
     };
     getSession();
 
@@ -59,6 +70,8 @@ export default function LandingPage() {
 
   if (!mounted) return <div className="bg-[#050505] min-h-screen" />;
 
+  const hasAccess = !!profile?.purchase_id || profile?.plan === 'architect';
+
   const navLinks = [
     { name: 'Performance', href: '#benchmarks' },
     { name: 'Specs', href: '#specs' },
@@ -85,6 +98,12 @@ export default function LandingPage() {
           {navLinks.map((link) => (
             <a key={link.name} href={link.href} className="text-gray-500 hover:text-[#00FF41] transition-all">{link.name}</a>
           ))}
+          
+          {hasAccess && (
+            <Link href="/dashboard" className="text-[#00FF41] hover:text-[#00FF41]/80 transition-all border-b border-[#00FF41]/30 pb-1">
+              [ DASHBOARD ]
+            </Link>
+          )}
           
           {user ? (
             <div className="relative" ref={menuRef}>
@@ -220,8 +239,11 @@ export default function LandingPage() {
           <p className="max-w-xl text-gray-500 text-xs md:text-sm mb-16 font-bold tracking-widest mx-auto uppercase leading-relaxed italic border-l-2 border-[#00FF41] pl-6">
             Zero-latency invisible HUD. <br/>Designed for engineers, architects and high-performance operators.
           </p>
-          <button onClick={() => handleAccessClick('pro')} className="px-12 py-6 bg-[#00FF41] text-black font-black text-xs tracking-[0.5em] hover:shadow-[0_0_60px_rgba(0,255,65,0.5)] active:scale-95 transition-all skew-x-[-12deg]">
-            INITIALIZE_SYSTEM_DEPLOYMENT
+          <button 
+            onClick={() => hasAccess ? router.push('/dashboard') : handleAccessClick('pro')} 
+            className="px-12 py-6 bg-[#00FF41] text-black font-black text-xs tracking-[0.5em] hover:shadow-[0_0_60px_rgba(0,255,65,0.5)] active:scale-95 transition-all skew-x-[-12deg]"
+          >
+            {hasAccess ? 'GO TO DASHBOARD' : 'INITIALIZE_SYSTEM_DEPLOYMENT'}
           </button>
         </motion.div>
       </header>

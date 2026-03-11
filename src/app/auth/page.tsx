@@ -6,8 +6,10 @@ import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
+import { useToast } from '@/context/ToastContext';
 
 function AuthContent() {
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,26 +33,43 @@ function AuthContent() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
-
-    // Debug log para ver si las variables llegan al navegador
-    console.log("Supabase URL Configurada:", !!process.env.NEXT_PUBLIC_SUPABASE_URL);
 
     try {
+      if (!isLogin) {
+        if (password.length < 6) {
+          throw new Error("SECURITY_PROTOCOL_ERROR: PASSWORD MUST BE AT LEAST 6 CHARACTERS");
+        }
+        if (password !== confirmPassword) {
+          throw new Error("SYNC_ERROR: PASSWORDS DO NOT MATCH");
+        }
+      }
+
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+
+        // FORZAR SINCRONIZACIÓN DE PERFIL AL LOGUEARSE
+        if (authData.user) {
+          const { data: profile } = await supabase.from('profiles').select('id').eq('id', authData.user.id).single();
+          if (!profile) {
+            await supabase.from('profiles').insert({
+              id: authData.user.id,
+              email: authData.user.email,
+              first_name: authData.user.email?.split('@')[0],
+              username: authData.user.email?.split('@')[0],
+              plan: 'free'
+            });
+          }
+        }
+
+        toast("Neural Identity Authorized", "success");
         if (next && plan) {
           router.push(`${next}?plan=${plan}`);
         } else {
           router.push('/dashboard');
         }
       } else {
-        if (password !== confirmPassword) {
-          throw new Error("PASSWORDS DO NOT MATCH");
-        }
-        
-        const { error } = await supabase.auth.signUp({ 
+        const { data: signUpData, error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: { 
@@ -62,15 +81,28 @@ function AuthContent() {
           }
         });
         if (error) throw error;
-        setMessage('PROTOCOL CREATED. CHECK EMAIL.');
+
+        // CREAR PERFIL PREVENTIVO AL REGISTRARSE
+        if (signUpData.user) {
+          await supabase.from('profiles').insert({
+            id: signUpData.user.id,
+            email: signUpData.user.email,
+            first_name: firstName || email.split('@')[0],
+            last_name: lastName || 'User',
+            username: email.split('@')[0],
+            plan: 'free'
+          });
+        }
+
+        toast("Identity Initialized. Verification email sent.", "success");
+        setIsLogin(true);
       }
     } catch (err: any) {
       console.error("Auth error details:", err);
-      if (err.message === "Failed to fetch") {
-        setMessage("NETWORK ERROR: COULD NOT CONNECT TO AUTH SERVER. CHECK ENV VARIABLES.");
-      } else {
-        setMessage(err.message.toUpperCase());
-      }
+      const errorMsg = err.message === "Failed to fetch" 
+        ? "NETWORK_OFFLINE: CHECK CONNECTION" 
+        : err.message.toUpperCase();
+      toast(errorMsg, "error");
     } finally {
       setLoading(false);
     }
