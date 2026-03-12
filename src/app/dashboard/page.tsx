@@ -84,23 +84,44 @@ export default function DashboardPage() {
     }
   };
 
-  const INSTALLER_FILES: Record<'windows' | 'mac', { storageKey: string; downloadName: string }> = {
-    windows: { storageKey: 'Omni_HUD_LiteSetup.exe', downloadName: 'Omni_HUD_Setup.exe' },
-    mac: { storageKey: 'Omni_HUD_mac.dmg', downloadName: 'Omni_HUD_mac.dmg' },
+  const INSTALLER_FILES: Record<'windows' | 'mac', { downloadName: string }> = {
+    windows: { downloadName: 'Omni_HUD_Setup.exe' },
+    mac: { downloadName: 'Omni_HUD_mac.dmg' },
   };
 
   const handleDownload = async (platform: 'windows' | 'mac') => {
-    const { storageKey, downloadName } = INSTALLER_FILES[platform];
+    const { downloadName } = INSTALLER_FILES[platform];
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast("Session required", "error");
+      return;
+    }
     toast("Requesting Installer...", "loading");
     try {
-      const { data, error } = await supabase.storage.from('omni-installers').createSignedUrl(storageKey, 60);
-      if (error) throw error;
+      const res = await fetch(`/api/download/installer?platform=${platform}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-Refresh-Token': session.refresh_token ?? '',
+        },
+      });
+      if (!res.ok) {
+        if (res.status === 401) toast("Session expired", "error");
+        else if (res.status === 403) toast("Purchase required", "error");
+        else if (res.status === 404) toast("Installer not found", "error");
+        else toast("Download error", "error");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = data.signedUrl;
+      link.href = url;
       link.download = downloadName;
       link.click();
+      URL.revokeObjectURL(url);
       toast("Download Initialized", "success");
-    } catch (err) { toast("DOWNLOAD ERROR", "error"); }
+    } catch (err) {
+      toast("DOWNLOAD ERROR", "error");
+    }
   };
 
   if (!mounted) return null;

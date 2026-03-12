@@ -2,3 +2,5 @@
 .next/
 .env*
 public/*.exe
+.vercel
+.env*.local
