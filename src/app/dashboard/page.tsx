@@ -19,12 +19,16 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({ first_name: '', last_name: '', username: '' });
   const router = useRouter();
 
-  useEffect(() => { checkAccess(); }, []);
+  useEffect(() => { 
+    setMounted(true);
+    checkAccess(); 
+  }, []);
 
   const checkAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -80,27 +84,36 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDownload = async () => {
+  const INSTALLER_FILES: Record<'windows' | 'mac', { storageKey: string; downloadName: string }> = {
+    windows: { storageKey: 'Omni_HUD_LiteSetup.exe', downloadName: 'Omni_HUD_Setup.exe' },
+    mac: { storageKey: 'Omni_HUD_mac.dmg', downloadName: 'Omni_HUD_mac.dmg' },
+  };
+
+  const handleDownload = async (platform: 'windows' | 'mac') => {
+    const { storageKey, downloadName } = INSTALLER_FILES[platform];
     toast("Requesting Installer...", "loading");
     try {
-      const { data, error } = await supabase.storage.from('omni-installers').createSignedUrl('Omni_HUD_LiteSetup.exe', 60);
+      const { data, error } = await supabase.storage.from('omni-installers').createSignedUrl(storageKey, 60);
       if (error) throw error;
       const link = document.createElement('a');
       link.href = data.signedUrl;
-      link.download = 'Omni_HUD_Setup.exe';
+      link.download = downloadName;
       link.click();
       toast("Download Initialized", "success");
     } catch (err) { toast("DOWNLOAD ERROR", "error"); }
   };
 
+  if (!mounted) return null;
+
   if (loading) return (
-    <div className="min-h-screen bg-[#0D0D0D] flex items-center justify-center">
+    <div className="min-h-screen bg-[#0D0D0D] flex items-center justify-center" suppressHydrationWarning>
       <div className="flex flex-col items-center gap-4">
         <Loader2 className="text-[#00FF41] animate-spin" size={40} />
         <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.4em]">Synchronizing_Neural_Link...</p>
       </div>
     </div>
   );
+
 
   if (!profile) return (
     <div className="min-h-screen bg-[#0D0D0D] flex items-center justify-center p-6 text-center">
@@ -144,7 +157,7 @@ export default function DashboardPage() {
         <div className="grid lg:grid-cols-12 gap-8 text-left">
           {/* MAIN CONTENT */}
           <div className="lg:col-span-8 space-y-8">
-            <DownloadSection isPurchaseValid={isPurchaseValid} onDownload={handleDownload} />
+            <DownloadSection isPurchaseValid={isPurchaseValid} onDownload={(platform) => handleDownload(platform)} />
 
             <section className="bg-black/40 border border-[#222] rounded-[3rem] p-10 text-left">
               <h3 className="text-white font-black text-sm uppercase tracking-[0.3em] flex items-center gap-3 mb-10 text-left"><Terminal size={20} className="text-[#00FF41]" /> Pre-Flight Checklist</h3>

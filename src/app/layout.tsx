@@ -18,7 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-[#0D0D0D] text-[#E0E0E0] antialiased selection:bg-[#00FF41] selection:text-black`}>
+      <body suppressHydrationWarning className={`${inter.className} bg-[#0D0D0D] text-[#E0E0E0] antialiased selection:bg-[#00FF41] selection:text-black`}>
         <ToastProvider>
           {children}
         </ToastProvider>

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+
 export const useAuth = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -41,7 +43,12 @@ export const useAuth = () => {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  const isArchitect = profile?.plan === 'architect';
+  // isArchitect: true if DB plan is 'architect' OR if the logged-in email matches the admin email env var
+  // This ensures admin access even if the DB hasn't been updated yet or if RLS blocks the profile read
+  const isArchitect =
+    profile?.plan === 'architect' ||
+    (!!user?.email && !!ADMIN_EMAIL && user.email === ADMIN_EMAIL);
+
   const hasAccess = !!profile?.purchase_id || isArchitect;
 
   return { user, profile, loading, isArchitect, hasAccess };

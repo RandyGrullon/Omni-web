@@ -83,8 +83,8 @@ export const SubjectExpedient: React.FC<SubjectExpedientProps> = ({
               <p className="text-zinc-500 text-xs font-medium lowercase mt-1">{selectedUser.email}</p>
               
               <div className="flex gap-2 mt-4">
-                <span className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${selectedUser.plan === 'architect' ? 'bg-purple-500/20 text-purple-400' : !isKeyExpired(selectedUser.plan_expires_at, selectedUser.plan) ? 'bg-[#10b981]/10 text-[#10b981]' : 'bg-red-500/10 text-red-500'}`}>
-                  {selectedUser.plan === 'architect' ? 'ACCESO_TOTAL_VITALICIO' : !isKeyExpired(selectedUser.plan_expires_at, selectedUser.plan) ? 'SISTEMA_VIGENTE' : 'SISTEMA_EXPIRADO'}
+                <span className={`px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest ${isKeyExpired(selectedUser.plan_expires_at, selectedUser.plan) ? 'bg-red-500/10 text-red-500' : 'bg-[#10b981]/10 text-[#10b981]'}`}>
+                  {isKeyExpired(selectedUser.plan_expires_at, selectedUser.plan) ? 'PROTOCOLO EXPIRADO' : 'PROTOCOLO VIGENTE'}
                 </span>
               </div>
             </div>
@@ -96,7 +96,9 @@ export const SubjectExpedient: React.FC<SubjectExpedientProps> = ({
               </div>
               <div className="bg-black/40 border border-zinc-800/50 p-4 rounded-2xl text-left">
                 <p className="text-[8px] text-zinc-600 font-black uppercase tracking-widest mb-1 text-left">Protocol_Expiration</p>
-                <p className="text-xs font-bold text-zinc-300 text-left">{selectedUser.plan === 'architect' ? '∞ PERMANENTE' : selectedUser.plan_expires_at ? new Date(selectedUser.plan_expires_at).toLocaleString() : 'PENDIENTE'}</p>
+                <p className={`text-xs font-bold text-left ${isKeyExpired(selectedUser.plan_expires_at, selectedUser.plan) ? 'text-red-500' : 'text-zinc-300'}`}>
+                  {selectedUser.plan_expires_at ? new Date(selectedUser.plan_expires_at).toLocaleDateString() : '∞ PERMANENTE'}
+                </p>
               </div>
             </div>
 
