@@ -1,7 +1,7 @@
 // src/components/dashboard/ProfileDrawer.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Settings, LogOut, Loader2 } from 'lucide-react';
+import { X, Settings, LogOut, Loader2, Key } from 'lucide-react';
 
 interface ProfileDrawerProps {
   isOpen: boolean;
@@ -12,11 +12,22 @@ interface ProfileDrawerProps {
   onUpdate: (e: React.FormEvent) => void;
   onSignOut: () => void;
   saving: boolean;
+  hasGroqKey?: boolean;
+  onSaveGroqKey?: (key: string, confirmKey: string) => void;
+  groqKeySaving?: boolean;
+  onOpen?: () => void;
 }
 
 export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
-  isOpen, onClose, profile, formData, setFormData, onUpdate, onSignOut, saving
+  isOpen, onClose, profile, formData, setFormData, onUpdate, onSignOut, saving,
+  hasGroqKey = false, onSaveGroqKey, groqKeySaving = false, onOpen
 }) => {
+  const [groqKey, setGroqKey] = useState('');
+  const [groqKeyConfirm, setGroqKeyConfirm] = useState('');
+
+  useEffect(() => {
+    if (isOpen) onOpen?.();
+  }, [isOpen, onOpen]);
   return (
     <AnimatePresence>
       {isOpen && (
@@ -84,6 +95,43 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                   </button>
                 </div>
               </form>
+            </div>
+
+            <div className="bg-[#111] border border-[#222] rounded-[2rem] p-8 text-left mt-8">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4 flex items-center gap-3">
+                <Key size={16} /> Groq_API_Key
+              </h3>
+              {hasGroqKey ? (
+                <p className="text-[10px] text-[#00FF41] font-bold uppercase mb-4">Key configured. You can change it below.</p>
+              ) : (
+                <p className="text-[10px] text-gray-500 mb-4">Set your Groq API key to use chat on the web. It is stored encrypted.</p>
+              )}
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  value={groqKey}
+                  onChange={(e) => setGroqKey(e.target.value)}
+                  placeholder="Groq API key"
+                  className="w-full bg-black border border-[#222] p-4 rounded-xl text-xs text-white placeholder-gray-500 focus:border-[#00FF41] outline-none"
+                  autoComplete="off"
+                />
+                <input
+                  type="password"
+                  value={groqKeyConfirm}
+                  onChange={(e) => setGroqKeyConfirm(e.target.value)}
+                  placeholder="Confirm key (optional)"
+                  className="w-full bg-black border border-[#222] p-4 rounded-xl text-xs text-white placeholder-gray-500 focus:border-[#00FF41] outline-none"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  disabled={groqKeySaving || !groqKey.trim()}
+                  onClick={() => onSaveGroqKey?.(groqKey, groqKeyConfirm)}
+                  className="w-full bg-[#00FF41]/10 border border-[#00FF41]/30 text-[#00FF41] py-3 rounded-xl text-[10px] font-black uppercase hover:bg-[#00FF41]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {groqKeySaving ? <Loader2 className="animate-spin" size={14} /> : null} Verify and save
+                </button>
+              </div>
             </div>
           </motion.div>
         </>

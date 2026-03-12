@@ -5,7 +5,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
+import { Shield, Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/context/ToastContext';
 import { NeuralModal } from '@/components/ui/NeuralModal';
 
@@ -19,6 +19,8 @@ function AuthContent() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [modal, setModal] = useState<{ show: boolean; title: string; message: string; type: 'error' | 'info' | 'success' }>({
     show: false,
     title: '',
@@ -266,13 +268,22 @@ function AuthContent() {
             <div className="relative">
               <Lock className="absolute left-4 top-3 text-gray-600" size={16} />
               <input 
-                type="password" 
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-[#080808] border border-[#222] py-3 pl-10 pr-4 rounded-xl focus:border-[#00FF41] outline-none transition-all text-xs"
+                className="w-full bg-[#080808] border border-[#222] py-3 pl-10 pr-11 rounded-xl focus:border-[#00FF41] outline-none transition-all text-xs"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
+                title={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 
@@ -282,18 +293,28 @@ function AuthContent() {
               <div className="relative">
                 <Lock className="absolute left-4 top-3 text-gray-600" size={16} />
                 <input 
-                  type="password" 
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-[#080808] border border-[#222] py-3 pl-10 pr-4 rounded-xl focus:border-[#00FF41] outline-none transition-all text-xs"
+                  className="w-full bg-[#080808] border border-[#222] py-3 pl-10 pr-11 rounded-xl focus:border-[#00FF41] outline-none transition-all text-xs"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
+                  title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </div>
           )}
 
           <button 
+            type="submit"
             disabled={loading}
             className="w-full py-4 bg-[#00FF41] text-black font-black text-xs tracking-[0.3em] uppercase rounded-xl hover:shadow-[0_0_30px_rgba(0,255,65,0.3)] transition-all flex items-center justify-center gap-2 mt-4"
           >

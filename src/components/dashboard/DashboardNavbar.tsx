@@ -1,6 +1,7 @@
 // src/components/dashboard/DashboardNavbar.tsx
 import React from 'react';
-import { ShieldCheck, User } from 'lucide-react';
+import Link from 'next/link';
+import { ShieldCheck, User, MessageSquare } from 'lucide-react';
 import { NeuralBadge } from '@/components/ui/NeuralBadge';
 
 interface DashboardNavbarProps {
@@ -28,6 +29,12 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({ profile, isPur
       </div>
 
       <div className="flex items-center gap-6 text-left">
+        <Link
+          href="/dashboard/chat"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#222] text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:border-[#00FF41]/40 hover:text-[#00FF41] transition-colors"
+        >
+          <MessageSquare size={14} /> Chat
+        </Link>
         <div className="text-right hidden sm:block">
           <p className="text-[10px] font-black text-white uppercase tracking-tight">{profile.username || 'Initializing...'}</p>
           <p className={`text-[8px] uppercase font-bold tracking-[0.2em] mt-0.5 ${isPurchaseValid ? 'text-[#00FF41]' : 'text-gray-600'}`}>

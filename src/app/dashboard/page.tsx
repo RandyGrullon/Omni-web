@@ -4,8 +4,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Terminal, ShieldCheck, Loader2, Activity, Lock, Clipboard as ClipboardIcon, AlertCircle 
+  Terminal, ShieldCheck, Loader2, Activity, Lock, Clipboard as ClipboardIcon, AlertCircle, MessageSquare 
 } from 'lucide-react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/context/ToastContext';
@@ -23,6 +24,8 @@ export default function DashboardPage() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({ first_name: '', last_name: '', username: '' });
+  const [hasGroqKey, setHasGroqKey] = useState(false);
+  const [groqKeySaving, setGroqKeySaving] = useState(false);
   const router = useRouter();
 
   useEffect(() => { 
@@ -47,6 +50,65 @@ export default function DashboardPage() {
       setFormData({ first_name: data.first_name || '', last_name: data.last_name || '', username: data.username || '' });
     }
     setLoading(false);
+  };
+
+  const fetchGroqKeyStatus = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    try {
+      const res = await fetch('/api/profile/groq-key', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-Refresh-Token': session.refresh_token ?? '',
+        },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setHasGroqKey(!!json.hasKey);
+      }
+    } catch (_) {
+      setHasGroqKey(false);
+    }
+  };
+
+  const handleSaveGroqKey = async (key: string, confirmKey: string) => {
+    if (!key.trim()) {
+      toast('Enter your Groq API key', 'error');
+      return;
+    }
+    if (confirmKey && key !== confirmKey) {
+      toast('Key and confirmation do not match', 'error');
+      return;
+    }
+    setGroqKeySaving(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast('Session required', 'error');
+      setGroqKeySaving(false);
+      return;
+    }
+    try {
+      const res = await fetch('/api/profile/groq-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'X-Refresh-Token': session.refresh_token ?? '',
+        },
+        body: JSON.stringify({ key: key.trim(), confirmKey: confirmKey.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast((data as { error?: string }).error || 'Failed to save key', 'error');
+        return;
+      }
+      setHasGroqKey(true);
+      toast('Groq API key saved', 'success');
+    } catch {
+      toast('Network error', 'error');
+    } finally {
+      setGroqKeySaving(false);
+    }
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -182,19 +244,59 @@ export default function DashboardPage() {
 
             <section className="bg-black/40 border border-[#222] rounded-[3rem] p-10 text-left">
               <h3 className="text-white font-black text-sm uppercase tracking-[0.3em] flex items-center gap-3 mb-10 text-left"><Terminal size={20} className="text-[#00FF41]" /> Pre-Flight Checklist</h3>
-              <div className="grid md:grid-cols-2 gap-12 text-left">
-                <div className="space-y-4 text-left">
-                  <span className="text-3xl font-black text-[#00FF41] text-left">01</span>
-                  <h4 className="font-black text-[11px] uppercase tracking-widest text-left">Python_Engine</h4>
-                  <p className="text-[10px] text-gray-500 leading-relaxed uppercase text-left">Runs on Python 3.11. Ensure environment is established.</p>
+              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-8 text-left">No additional runtime required. Install the app and configure once.</p>
+              <div className="grid md:grid-cols-2 gap-8 text-left">
+                <div className="flex gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] text-left">
+                  <span className="text-2xl font-black text-[#00FF41] shrink-0">01</span>
+                  <div>
+                    <h4 className="font-black text-[11px] uppercase tracking-widest text-white mb-1 text-left">Install_App</h4>
+                    <p className="text-[10px] text-gray-500 leading-relaxed uppercase text-left">Download and run the installer for Windows or Mac. No Python or extra dependencies.</p>
+                  </div>
                 </div>
-                <div className="space-y-4 text-left">
-                  <span className="text-3xl font-black text-[#00FF41] text-left">02</span>
-                  <h4 className="font-black text-[11px] uppercase tracking-widest text-left">Path_Integration</h4>
-                  <p className="text-[10px] text-gray-500 leading-relaxed uppercase text-left">Enable "Add Python to PATH" during setup.</p>
+                <div className="flex gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] text-left">
+                  <span className="text-2xl font-black text-[#00FF41] shrink-0">02</span>
+                  <div>
+                    <h4 className="font-black text-[11px] uppercase tracking-widest text-white mb-1 text-left">Groq_Key</h4>
+                    <p className="text-[10px] text-gray-500 leading-relaxed uppercase text-left">Add your Groq API key in Profile (web or desktop) to enable the AI engine.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] text-left">
+                  <span className="text-2xl font-black text-[#00FF41] shrink-0">03</span>
+                  <div>
+                    <h4 className="font-black text-[11px] uppercase tracking-widest text-white mb-1 text-left">Sync_Identity</h4>
+                    <p className="text-[10px] text-gray-500 leading-relaxed uppercase text-left">Complete your profile and keep your Neural Auth Key ready for the desktop app.</p>
+                  </div>
+                </div>
+                <div className="flex gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] text-left">
+                  <span className="text-2xl font-black text-[#00FF41] shrink-0">04</span>
+                  <div>
+                    <h4 className="font-black text-[11px] uppercase tracking-widest text-white mb-1 text-left">Ready</h4>
+                    <p className="text-[10px] text-gray-500 leading-relaxed uppercase text-left">Launch the app or use Omni Chat on the web. Edit and manage conversations anytime.</p>
+                  </div>
                 </div>
               </div>
             </section>
+
+            <Link
+              href="/dashboard/chat"
+              className="block bg-black/40 border border-[#222] hover:border-[#00FF41]/40 rounded-[3rem] p-8 md:p-10 text-left transition-colors group"
+            >
+              <div className="flex items-start gap-5">
+                <div className="w-14 h-14 rounded-2xl bg-[#00FF41]/10 border border-[#00FF41]/20 flex items-center justify-center shrink-0 group-hover:bg-[#00FF41]/20 transition-colors">
+                  <MessageSquare className="text-[#00FF41]" size={28} />
+                </div>
+                <div>
+                  <h3 className="text-white font-black text-sm uppercase tracking-[0.2em] mb-2 flex items-center gap-2">
+                    Omni_Chat
+                    <span className="text-[9px] font-bold text-[#00FF41] uppercase tracking-widest">Web</span>
+                  </h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider leading-relaxed mb-4">
+                    Chat with AI in the browser. Create, edit, and delete conversations. Syntax highlighting and copy code blocks.
+                  </p>
+                  <span className="text-[10px] font-bold text-[#00FF41] uppercase tracking-wider group-hover:underline">Open Chat →</span>
+                </div>
+              </div>
+            </Link>
           </div>
 
           {/* ASIDE */}
@@ -218,10 +320,19 @@ export default function DashboardPage() {
             )}
             <div className="bg-[#111] border border-[#222] rounded-[2.5rem] p-10 text-left">
               <h3 className="font-black text-[10px] uppercase tracking-[0.3em] text-gray-500 mb-10 flex items-center gap-3 text-left"><Activity className="text-[#00FF41]/50" size={16} /> Initialization_Flow</h3>
-              <ul className="space-y-8 text-left">
-                {['Execute Setup', 'Obtain Groq Key', 'Sync Identity', 'Auto-Sync Active'].map((s, i) => (
-                  <li key={i} className="flex items-center gap-5 text-gray-500 text-[10px] font-black uppercase text-left">
-                    <span className="w-8 h-8 rounded-xl flex items-center justify-center bg-[#222] text-[#00FF41] text-left">{i+1}</span>{s}
+              <ul className="space-y-6 text-left">
+                {[
+                  { step: 'Install app', desc: 'Run installer (Win/Mac)' },
+                  { step: 'Groq key', desc: 'Profile or desktop' },
+                  { step: 'Sync identity', desc: 'Profile + Neural Key' },
+                  { step: 'Go', desc: 'Desktop app or web chat' },
+                ].map((item, i) => (
+                  <li key={i} className="flex items-center gap-4 text-left">
+                    <span className="w-9 h-9 rounded-xl flex items-center justify-center bg-[#222] text-[#00FF41] text-xs font-black shrink-0">{i + 1}</span>
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-white tracking-wider">{item.step}</p>
+                      <p className="text-[9px] text-gray-500 uppercase tracking-wider mt-0.5">{item.desc}</p>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -233,7 +344,9 @@ export default function DashboardPage() {
       <ProfileDrawer 
         isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} profile={profile} 
         formData={formData} setFormData={setFormData} onUpdate={handleUpdateProfile} 
-        onSignOut={() => supabase.auth.signOut().then(() => router.push('/'))} saving={saving} 
+        onSignOut={() => supabase.auth.signOut().then(() => router.push('/'))} saving={saving}
+        hasGroqKey={hasGroqKey} onSaveGroqKey={handleSaveGroqKey} groqKeySaving={groqKeySaving}
+        onOpen={() => fetchGroqKeyStatus()}
       />
     </div>
   );

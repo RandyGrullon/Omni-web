@@ -22,6 +22,13 @@ export default function LandingPage() {
 
   useEffect(() => {
     setMounted(true);
+    // Si Google OAuth redirigió aquí con tokens en el hash (#access_token=...), enviar a /auth/callback
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash && hash.includes('access_token')) {
+      const search = typeof window !== 'undefined' ? window.location.search : '';
+      router.replace(`/auth/callback${search}${hash}`);
+      return;
+    }
     const getSession = async () => {
       const { data } = await supabase.auth.getSession();
       const currentUser = data.session?.user || null;
