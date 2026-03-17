@@ -239,8 +239,19 @@ export default function DashboardChatPage() {
 
   const sendMessage = async () => {
     const prompt = input.trim();
-    if (!prompt || !sessionRef.current) return;
+    if (!prompt) return;
     if (streaming) return; // Un solo mensaje a la vez: esperar a que la IA termine
+    // Si no hay sesión en el ref, intentar refrescar una vez (p. ej. tras login en otra pestaña o callback reciente)
+    if (!sessionRef.current) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        sessionRef.current = { access_token: session.access_token, refresh_token: session.refresh_token ?? '' };
+      } else {
+        toast('Sesión expirada. Vuelve a iniciar sesión.', 'error');
+        router.push('/auth');
+        return;
+      }
+    }
     setInput('');
     setStreaming(true);
     setStreamingContent('');

@@ -11,6 +11,9 @@ export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let authListener: { subscription: { unsubscribe: () => void } } | null = null;
+
     const handleCallback = async () => {
       try {
         // Supabase reads the #access_token from the URL hash automatically
@@ -49,14 +52,16 @@ export default function AuthCallbackPage() {
           // Wait for SIGNED_IN event with a safety timeout
           const { data: listener } = supabase.auth.onAuthStateChange((event, sess) => {
             if (event === 'SIGNED_IN' && sess) {
-              listener.subscription.unsubscribe();
+              if (timeoutId != null) clearTimeout(timeoutId);
+              authListener?.subscription.unsubscribe();
               const params = new URLSearchParams(window.location.search);
               router.replace(params.get('next') || '/dashboard');
             }
           });
+          authListener = listener;
 
-          setTimeout(() => {
-            listener.subscription.unsubscribe();
+          timeoutId = setTimeout(() => {
+            authListener?.subscription.unsubscribe();
             router.replace('/auth?error=auth_callback_failed');
           }, 5000);
         }
@@ -67,6 +72,11 @@ export default function AuthCallbackPage() {
     };
 
     handleCallback();
+
+    return () => {
+      if (timeoutId != null) clearTimeout(timeoutId);
+      authListener?.subscription.unsubscribe();
+    };
   }, [router]);
 
   // Pure CSS spinner — no SVG icons, avoids Dark Reader extension hydration conflicts
